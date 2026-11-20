@@ -22,9 +22,17 @@
 ### Install
 
 ```sh
-dsh plugin --profile desktop add dsh-rp-studio      # from npm, once published
-# or straight from the repository:
-dsh plugin --profile desktop add github:OWNER/dsh-rp-studio
+# straight from the repository (works today):
+dsh plugin --profile desktop add github:gaozhenkun92-eng/dsh-rp-studio
+
+# from npm, once the package is published:
+dsh plugin --profile desktop add dsh-rp-studio
+```
+
+Or point it at a checkout on disk — `link:` installs are what the probes run against:
+
+```sh
+dsh plugin --profile desktop add "<path to this folder>" --save-exact
 ```
 
 Restart the desktop app (tray → quit → reopen) after installing: `cordis.patch.yml` is read once at boot. Editing only `lib/client.js` afterwards just needs Ctrl+R in the UI.
