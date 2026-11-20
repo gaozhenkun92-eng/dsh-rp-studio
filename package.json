@@ -15,11 +15,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/__GITHUB_OWNER__/dsh-rp-studio.git"
+    "url": "git+https://github.com/gaozhenkun92-eng/dsh-rp-studio.git"
   },
-  "homepage": "https://github.com/__GITHUB_OWNER__/dsh-rp-studio#readme",
+  "homepage": "https://github.com/gaozhenkun92-eng/dsh-rp-studio#readme",
   "bugs": {
-    "url": "https://github.com/__GITHUB_OWNER__/dsh-rp-studio/issues"
+    "url": "https://github.com/gaozhenkun92-eng/dsh-rp-studio/issues"
   },
   "engines": {
     "node": ">=22.19.0"
