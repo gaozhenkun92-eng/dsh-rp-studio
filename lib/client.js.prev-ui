@@ -1,0 +1,258 @@
+// dsh-rp-studio 客户端侧（雏形）
+//   1) 对话顶栏第 4 个页签「妙脆.角」
+//   2) 插件区（设置 → 插件 → 本插件页）一个启用开关，关掉即摘掉页签
+//
+// 布局上的两条硬规矩（踩过的坑）：
+//   · 视图根节点必须是「可收缩的弹性子项」：flex-basis 0 + min-height 0，
+//     并且不设 min-height 固定值。否则会把自己算高的那块空间撑进布局，
+//     把下方的输入框和别的插件按钮顶乱。
+//   · 视图根节点加 contain: layout paint，任何时候都不许溢出自己的盒子。
+window.__ModuleLoader__.load({
+  id: "dsh-rp-studio",
+  factory: (require) => {
+    var module = { exports: {} };
+    var exports = module.exports;
+
+    // React 不是全局变量：客户端 bundle 统一以 require("react") 取壳层种子模块。
+    var React = require("react");
+
+    var STORAGE_KEY = "dsh-rp-studio.enabled";
+    var listeners = [];
+
+    function readEnabled() {
+      try {
+        var raw = window.localStorage ? window.localStorage.getItem(STORAGE_KEY) : null;
+        return raw === null || raw === undefined ? true : raw === "1";
+      } catch (error) {
+        return true;
+      }
+    }
+
+    function writeEnabled(value) {
+      try {
+        if (window.localStorage) window.localStorage.setItem(STORAGE_KEY, value ? "1" : "0");
+      } catch (error) {
+        /* 写不进去也不该炸界面 */
+      }
+      for (var i = 0; i < listeners.length; i += 1) {
+        try {
+          listeners[i](value);
+        } catch (error) {
+          /* 单个订阅者出错不影响其它 */
+        }
+      }
+    }
+
+    function subscribe(fn) {
+      listeners.push(fn);
+      return function () {
+        var index = listeners.indexOf(fn);
+        if (index >= 0) listeners.splice(index, 1);
+      };
+    }
+
+    // ---- 顶栏页签 ---------------------------------------------------------
+    var hostCtx = null;
+    var tabInjection = null; // ctx.slots.inject(...) 的返回值，只做注销用
+    var switchToChat = null; // 宿主给的 openView，用来在摘页签前先把选中项切回「对话」
+
+    // 占位视图：一块空白区域，居中一行说明文字。
+    // 不占多余高度、不溢出：flex-basis 0 + min-height 0 + contain。
+    function RpStudioView(props) {
+      // 记住 openView：如果本页签正被选中时被摘掉，选中项会悬空，
+      // 对话区就没有任何视图可渲染，整块区域连同下方工具栏会一起塌掉
+      // （表现为别的插件的按钮错位、purge 面板报错）。所以摘之前先切回「对话」。
+      if (props && typeof props.openView === "function") switchToChat = props.openView;
+      return React.createElement(
+        "div",
+        {
+          className: "rp-studio-root",
+          style: {
+            flex: "1 1 0%",
+            minHeight: 0,
+            minWidth: 0,
+            width: "100%",
+            height: "auto",
+            boxSizing: "border-box",
+            overflow: "auto",
+            contain: "layout paint",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+            color: "var(--dsh-text-secondary, #8a8f98)",
+            fontSize: 14
+          }
+        },
+        React.createElement("div", null, "妙脆.角 · 占位")
+      );
+    }
+
+    function registerTab() {
+      if (tabInjection || !hostCtx) return;
+      // conversation.view 就是「对话 / 轨迹 / 上下文」那一条 list slot。
+      // 用独立 id 并列新增一条页签，order 40 排在 bili-context(30) 后面。
+      tabInjection = hostCtx.slots.inject("conversation.view", function () {
+        return hostCtx.slots.register(
+          {
+            name: "conversation.view",
+            id: "rp-studio",
+            order: 40,
+            label: function () {
+              return "妙脆.角";
+            }
+          },
+          RpStudioView
+        );
+      });
+    }
+
+    function unregisterTab() {
+      if (!tabInjection) return;
+      var dispose = tabInjection;
+      tabInjection = null;
+      // 先把当前选中的视图切回「对话」，再摘，避免选中项悬空把整个对话区拖塌。
+      try {
+        if (typeof switchToChat === "function") switchToChat("chat", "");
+      } catch (error) {
+        /* 宿主不允许切也不影响摘除 */
+      }
+      try {
+        dispose();
+      } catch (error) {
+        /* 已经摘掉了 */
+      }
+    }
+
+    // ---- 插件区配置面板 ---------------------------------------------------
+    var TITLE = "妙脆.角 · 角色扮演工坊";
+
+    function Switch(props) {
+      var on = props.checked;
+      return React.createElement(
+        "button",
+        {
+          type: "button",
+          role: "switch",
+          "aria-checked": on ? "true" : "false",
+          title: on ? "停用" : "启用",
+          onClick: props.onChange,
+          style: {
+            flex: "0 0 auto",
+            width: 40,
+            height: 22,
+            padding: 0,
+            border: "1px solid " + (on ? "var(--dsh-accent, #4c8dff)" : "var(--dsh-border, #3a3f47)"),
+            borderRadius: 11,
+            background: on ? "var(--dsh-accent, #4c8dff)" : "var(--dsh-bg-subtle, #2a2e35)",
+            cursor: "pointer",
+            position: "relative",
+            transition: "background 120ms ease, border-color 120ms ease"
+          }
+        },
+        React.createElement("span", {
+          style: {
+            position: "absolute",
+            top: 2,
+            left: on ? 20 : 2,
+            width: 16,
+            height: 16,
+            borderRadius: 8,
+            background: "#fff",
+            transition: "left 120ms ease"
+          }
+        })
+      );
+    }
+
+    function ConfigPanel(props) {
+      var state = React.useState(readEnabled());
+      var enabled = state[0];
+      var setEnabled = state[1];
+
+      React.useEffect(function () {
+        return subscribe(function (value) {
+          setEnabled(value);
+        });
+      }, []);
+
+      // 插件页的摘要行（列表折叠态）：只回一行纯文本，不带任何布局。
+      if (props.view !== "page") {
+        return React.createElement(
+          "span",
+          { style: { color: "var(--dsh-text-secondary, #8a8f98)" } },
+          enabled ? "顶栏页签「妙脆.角」已启用" : "已停用"
+        );
+      }
+
+      function toggle() {
+        var next = !readEnabled();
+        writeEnabled(next);
+        setEnabled(next);
+      }
+
+      return React.createElement(
+        "div",
+        {
+          style: {
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 16,
+            padding: "8px 0",
+            contain: "layout style"
+          }
+        },
+        React.createElement(
+          "div",
+          { style: { display: "flex", flexDirection: "column", gap: 4, minWidth: 0 } },
+          React.createElement("div", { style: { fontSize: 13, fontWeight: 600 } }, TITLE),
+          React.createElement(
+            "div",
+            { style: { fontSize: 12, color: "var(--dsh-text-secondary, #8a8f98)", lineHeight: 1.6 } },
+            "在对话顶栏加一个「妙脆.角」页签。关掉开关即把页签摘下，重新打开立即恢复，不用重启。"
+          )
+        ),
+        React.createElement(Switch, { checked: enabled, onChange: toggle })
+      );
+    }
+
+    // ---- 激活 -------------------------------------------------------------
+    function apply(ctx) {
+      // 客户端激活失败会连累整个界面的模块合成，所以这里自兜底，只影响本插件。
+      try {
+        hostCtx = ctx;
+
+        if (readEnabled()) registerTab();
+
+        // 插件区里本包的配置格子：key 必须是包名 dsh-rp-studio。
+        ctx.slots.inject("plugins.bundle.config", function () {
+          return ctx.slots.register({ name: "plugins.bundle.config", key: "dsh-rp-studio" }, ConfigPanel);
+        });
+
+        // 开关一动就同步页签的挂载状态。推迟到下一个宏任务，
+        // 避免在 React 事件处理中同一帧里改动 slot 树。
+        subscribe(function (value) {
+          setTimeout(function () {
+            try {
+              if (value) registerTab();
+              else unregisterTab();
+            } catch (error) {
+              console.error("[dsh-rp-studio] tab toggle failed", error);
+            }
+          }, 0);
+        });
+      } catch (error) {
+        console.error("[dsh-rp-studio] activation failed", error);
+      }
+    }
+
+    module.exports = {
+      name: "dsh-rp-studio-client",
+      inject: ["slots"],
+      apply: apply
+    };
+
+    return module.exports;
+  }
+});
