@@ -4,6 +4,20 @@
 
 角色卡、世界书、图库、用户信息、权限开关都在这个页签里改；真正说话的人格由宿主**部署层提示段 `rp-studio:persona`** 注入，所以**任何预设、任何会话都自动带上当前绑定的角色卡**——不需要先选「角色扮演模式」。
 
+## 截图
+
+| 切换角色 | 角色设定 |
+| :---: | :---: |
+| ![切换角色](screenshots/01-switch-role.png) | ![角色设定](screenshots/02-card-editor.png) |
+
+| 世界书（集合 / 开关） | 图库 |
+| :---: | :---: |
+| ![世界书](screenshots/03-worldbook.png) | ![图库](screenshots/04-gallery.png) |
+
+| 用户信息 | 权限设置 |
+| :---: | :---: |
+| ![用户信息](screenshots/05-user-info.png) | ![权限设置](screenshots/06-permissions.png) |
+
 ---
 
 ## English

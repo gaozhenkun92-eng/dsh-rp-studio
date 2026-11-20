@@ -42,7 +42,9 @@
                   "README.md",
                   "DISCLAIMER.md",
                   "LICENSE",
-                  "probe"
+                  "probe",
+                  "screenshots",
+                  "screenshots.json"
               ],
     "scripts":  {
                     "test":  "node probe/rp-core-check.mjs && node probe/rp-host-http.mjs && node probe/rp-agent-check.mjs && node probe/rp-persona-global.mjs && node probe/rp-prompt-order-check.mjs && node probe/rp-gallery-check.mjs && node probe/rp-tools-check.mjs && node probe/rp-studio-client-smoke.mjs && node probe/rp-studio-ui-smoke.mjs && node probe/rp-studio-hooks-lint.mjs"
